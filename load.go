@@ -63,6 +63,7 @@ func loadConfig() {
 
 	exePath, err := os.Executable()
 	check(err)
+	cwd = filepath.Dir(exePath)
 	sameVolume = filepath.VolumeName(exePath) == filepath.VolumeName(root)
 }
 

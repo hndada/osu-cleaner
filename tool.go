@@ -19,34 +19,37 @@ func move(srcPath string) error {
 	if err != nil {
 		return err
 	}
-	dest := filepath.Join("moved", rel)
+	dest := filepath.Join(cwd, "moved", rel)
+	fmt.Println(dest)
 	if sameVolume {
 		err := os.Rename(srcPath, dest)
 		return err
 	}
 
+	fmt.Println("1")
 	in, err := os.Open(srcPath)
 	if err != nil {
 		return fmt.Errorf("Couldn't open source file: %s", err)
 	}
-
+	fmt.Println("2")
 	out, err := os.Create(dest)
 	if err != nil {
 		in.Close()
 		return fmt.Errorf("Couldn't open dest file: %s", err)
 	}
 	defer out.Close()
-
+	fmt.Println("3")
 	_, err = io.Copy(out, in)
 	in.Close()
 	if err != nil {
 		return fmt.Errorf("Writing to output file failed: %s", err)
 	}
-
+	fmt.Println("4")
 	err = os.Remove(srcPath)
 	if err != nil {
 		return fmt.Errorf("Failed removing original file: %s", err)
 	}
+	fmt.Println("5")
 	return nil
 }
 

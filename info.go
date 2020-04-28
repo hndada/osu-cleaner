@@ -9,7 +9,6 @@ import (
 )
 
 type beatmapInfo struct {
-	// md5      [16]byte
 	mode     int
 	metadata map[string]string
 	mapID    int
@@ -27,12 +26,11 @@ func getInfo(mapPath string) beatmapInfo {
 	}
 	defer f.Close()
 
-	var info beatmapInfo
-	// info.md5 = getMd5(mapPath)
-	metadata := make(map[string]string)
 	var line, section string
 	var splitKeyValue []string
 	var mode int
+	var info beatmapInfo
+	metadata := make(map[string]string)
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line = scanner.Text()
