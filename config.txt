@@ -1,0 +1,4 @@
+Songs:D:\test
+BanModes:0
+BanVideo:1
+BanImage:0
