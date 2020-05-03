@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pierrre/archivefile/zip"
 )
@@ -16,7 +17,6 @@ var (
 	root       string // osu! Songs dir
 	cwd        string // current working directory
 	sameVolume bool   // whether Songs dir and cleaner are in same drive volume
-	size       = make(map[string]int64)
 
 	banModes   = make(map[int]bool)
 	banVideo   bool
@@ -25,13 +25,40 @@ var (
 	banMappers = make(map[string]bool)
 	keep       = make(map[int]bool)
 
+	size     = make(map[string]int64)
 	noID     = -1
 	blankImg = image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{1, 1}})
 )
 
 func main() {
-	fmt.Println("Start running, this might take several minutes to an hour...")
 	loadConfig()
+	fmt.Printf("osu! Songs folder: %s\n", root)
+	modes := make([]string, 0, len(banModes))
+	for mode := range banModes {
+		modes = append(modes, strconv.Itoa(mode))
+	}
+	fmt.Printf("Banned modes: %+v (0: Standard 1: Taiko 2: Catch 3: Mania)\n", strings.Join(modes, ","))
+	fmt.Printf("Ban videos: %t\n", banVideo)
+	fmt.Printf("Ban background images: %t\n", banImage)
+	fmt.Printf("Ban storyboards: %t\n", banSB)
+	mappers := make([]string, 0, len(banMappers))
+	for mapper := range banMappers {
+		mappers = append(mappers, mapper)
+	}
+	fmt.Printf("Banned Mappers: %s\n", strings.Join(mappers, ","))
+
+	time.Sleep(time.Second)
+	fmt.Print("\nStart? This might take several minutes to an hour. (y/n) ")
+	var yes string
+	_, err := fmt.Scan(&yes)
+	check(err)
+	yes = strings.TrimSpace(yes)
+	yes = strings.ToLower(yes)
+	if yes != "y" {
+		os.Exit(1)
+	}
+
+	size["Songs"] = dirSize(root)
 	loadKeep()
 	loadBanMappers()
 	fmt.Println("Loading config done, start killing doubled files...")
