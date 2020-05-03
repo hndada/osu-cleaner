@@ -1,6 +1,7 @@
 osu! cleaner
 ===================================
 Make your osu! Songs folder light!
+
 [Download](https://github.com/hndada/osu-cleaner/releases)
 # Features
 - Remove duplicated folder
