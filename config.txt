@@ -1,5 +1,7 @@
-Songs:D:\test
+Songs:D:\osu!\Songs
+
+// BanModes example: 0,1,2 (ban std, taiko, catch maps)
 BanModes:0
 BanVideo:1
-BanImage:1
+BanImage:0
 BanStoryboard:1

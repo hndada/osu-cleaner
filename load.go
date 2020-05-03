@@ -74,6 +74,7 @@ func loadConfig() {
 	check(err)
 	cwd = filepath.Dir(exePath)
 	sameVolume = filepath.VolumeName(exePath) == filepath.VolumeName(root)
+	size["Songs"] = dirSize(root)
 }
 
 func loadKeep() {

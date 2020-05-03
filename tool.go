@@ -14,38 +14,41 @@ import (
 
 // input path must be filepath
 func move(relPath string) error {
+	if strings.Contains(relPath, ":\\") { // old maps are vulnerable to this
+		return nil
+	}
 	destPath := filepath.Join(cwd, "moved", relPath)
 	err := os.MkdirAll(filepath.Dir(destPath), 0777)
 	check(err)
-	// if s, _:= os.Stat(destPath); s.IsDir()
 
 	absPath := filepath.Join(root, relPath)
-	if sameVolume {
-		err = os.Rename(absPath, destPath)
+	in, err := os.Open(absPath)
+	if err != nil {
 		return err
 	}
 
-	in, err := os.Open(absPath)
-	if err != nil {
-		return fmt.Errorf("Couldn't open source file: %s", err)
+	if sameVolume {
+		in.Close()
+		err = os.Rename(absPath, destPath)
+		return err
 	}
 
 	out, err := os.Create(destPath)
 	if err != nil {
 		in.Close()
-		return fmt.Errorf("Couldn't open dest file: %s", err)
+		return err
 	}
 	defer out.Close()
 
 	_, err = io.Copy(out, in)
 	in.Close()
 	if err != nil {
-		return fmt.Errorf("Writing to output file failed: %s", err)
+		return err
 	}
 
 	err = os.Remove(absPath)
 	if err != nil {
-		return fmt.Errorf("Failed removing original file: %s", err)
+		return err
 	}
 	return nil
 }
@@ -94,45 +97,39 @@ func getSetID(songName string) int {
 	return id
 }
 
+func dirSize(path string) int64 {
+	var size int64
+	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return err
+	})
+	if err != nil {
+		fmt.Println(err)
+	}
+	return size
+}
+
+func byteCountIEC(b int64) string {
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %ciB",
+		float64(b)/float64(div), "KMGTPE"[exp])
+}
+
 func check(err error) {
 	if err != nil {
 		panic(err)
 	}
 }
-
-// func moveAll(songName string) error {
-// 	songPath := filepath.Join(root, songName)
-// 	err := filepath.Walk(songPath,
-// 		func(path string, info os.FileInfo, err error) error {
-// 			if err != nil {
-// 				return err
-// 			}
-// 			move(path)
-// 			return nil
-// 		})
-// 	check(err)
-// 	fs, err := ioutil.ReadDir(songPath)
-// 	check(err)
-// 	if len(fs) != 0 {
-// 		return errors.New("there're unmoved remained files!")
-// 	}
-// 	return os.Remove(songPath)
-// }
-
-// func containsInt(s []int, e int) bool {
-// 	for _, v := range s {
-// 		if v == e {
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }
-
-// func containsStr(s []string, e string) bool {
-// 	for _, v := range s {
-// 		if v == e {
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }

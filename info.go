@@ -55,14 +55,17 @@ func getInfo(mapPath string) beatmapInfo {
 				}
 			case "Metadata":
 				splitKeyValue = strings.Split(line, `:`)
-				metadata[splitKeyValue[0]] = splitKeyValue[1]
+				if len(splitKeyValue) < 2 {
+					metadata[splitKeyValue[0]] = ""
+				} else {
+					metadata[splitKeyValue[0]] = splitKeyValue[1]
+				}
 			case "Events":
 				if strings.HasPrefix(line, "0,0,") {
 					info.bgName = strings.Trim(strings.Split(line, ",")[2], "\"")
 				} else if strings.HasPrefix(line, "Video") || strings.HasPrefix(line, "1,") {
 					info.vidName = strings.Trim(strings.Split(line, ",")[2], "\"")
-				} else if strings.HasPrefix(line, "Sprite") || strings.HasPrefix(line, "Animation") ||
-					strings.HasPrefix(line, "Sample") {
+				} else if strings.HasPrefix(line, "Sprite") || strings.HasPrefix(line, "Animation") {
 					sbRelPaths = append(sbRelPaths, strings.Trim(strings.Split(line, ",")[3], "\""))
 				}
 			}

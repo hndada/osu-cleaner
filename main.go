@@ -1,10 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"image"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/pierrre/archivefile/zip"
 )
@@ -13,6 +16,7 @@ var (
 	root       string // osu! Songs dir
 	cwd        string // current working directory
 	sameVolume bool   // whether Songs dir and cleaner are in same drive volume
+	size       = make(map[string]int64)
 
 	banModes   = make(map[int]bool)
 	banVideo   bool
@@ -26,14 +30,21 @@ var (
 )
 
 func main() {
+	fmt.Println("Start running, this might take several minutes...")
 	loadConfig()
+	fmt.Println("Loading config done, start loading keep list...")
 	loadKeep()
+	fmt.Println("Loading keep list done, start killing doubled files...")
 	killDouble()
+	fmt.Println("Double killing done, start cleaning...")
 	sweep()
+	printSize()
 }
 
 // check sameness with sums of all beatmap's md5 of each folder
 func killDouble() {
+	size["doubled_deleted"] = 0
+	size["doubled_moved"] = 0
 	marked := make(map[int]string)
 	songSum := make(map[string][16]byte)
 	if _, err := os.Stat("doubled"); os.IsNotExist(err) {
@@ -68,6 +79,7 @@ func killDouble() {
 
 		if existName, ok := marked[id]; ok {
 			if sum == songSum[existName] {
+				size["doubled_deleted"] += dirSize(songPath)
 				os.RemoveAll(songPath)
 			} else { // remove older and update with newer
 				older, newer = olderNewer(filepath.Join(root, existName), songPath)
@@ -75,6 +87,7 @@ func killDouble() {
 				check(err)
 				err = zip.Archive(older, f, nil)
 				check(err)
+				size["doubled_moved"] += dirSize(older)
 				os.RemoveAll(older)
 				marked[id] = filepath.Base(newer)
 				songSum[filepath.Base(newer)] = sum
@@ -93,12 +106,16 @@ func sweep() {
 		os.Mkdir("moved", os.ModePerm)
 	}
 
+	size["moved"] = 0
 	var info beatmapInfo
 	var songName, songPath string
 	var mapName, mapPath string
+	var values []string
+	var setID int
 	movesList := make(map[string]bool)
 	allBan := make(map[string]bool)
 	bgPathsList := make(map[string]bool)
+song:
 	for _, song := range songs {
 		var safe bool
 		var osbName string
@@ -111,6 +128,16 @@ func sweep() {
 		check(err)
 		moves := make([]string, 0, len(beatmaps))
 		bgPaths := make([]string, 0, len(beatmaps))
+
+		values = strings.SplitN(songName, " ", 2)
+		if setID, err = strconv.Atoi(values[0]); err == nil {
+			if keep[setID] {
+				fmt.Printf("Song %s is kept from cleaner\n", songName)
+				// safe = true
+				continue
+			}
+		}
+
 		for _, beatmap := range beatmaps {
 			mapName = beatmap.Name()
 			if banSB && filepath.Ext(mapName) == ".osb" {
@@ -122,8 +149,9 @@ func sweep() {
 			mapPath = filepath.Join(songPath, mapName)
 			info = getInfo(mapPath)
 			if keep[info.setID] {
-				allBan[songName] = false
-				break
+				fmt.Printf("Song %s (SetID: %d) is kept from cleaner\n", info.metadata["Title"], info.setID)
+				// safe = true
+				continue song
 			}
 			if banModes[info.mode] || banMappers[info.mapper] {
 				moves = append(moves, filepath.Join(songName, mapName))
@@ -143,11 +171,12 @@ func sweep() {
 				}
 			}
 		}
+
 		if !safe { // marked with allBan beatmapSet goes archieved with .osz
 			allBan[songName] = true
 		} else {
 			if osbName != "" {
-				info = getInfo(osbName)
+				info = getInfo(filepath.Join(songPath, osbName))
 				for _, relPath := range info.sbRelPaths {
 					moves = append(moves, filepath.Join(songName, relPath))
 				}
@@ -167,16 +196,27 @@ func sweep() {
 		check(err)
 		err = zip.Archive(songPath, f, nil)
 		check(err)
+		size["moved"] += dirSize(songPath)
 		os.RemoveAll(songPath)
 	}
 
 	for relPath := range movesList {
 		err = move(relPath)
-		check(err)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
 	}
 	// put blank pics; osu! gets angry when it detects bg was deleted
 	for relPath := range bgPathsList {
 		err = blank(relPath)
 		check(err)
 	}
+}
+
+func printSize() {
+	reduced := size["moved"] + size["doubled_moved"] + size["doubled_deleted"]
+	fmt.Printf("Original Songs size: %s\n", byteCountIEC(size["Songs"]))
+	fmt.Printf("After Songs size: %s\n", byteCountIEC(size["Songs"]-reduced))
+	fmt.Printf("Total reduced size: %s (deleted: %s)\n",
+		byteCountIEC(reduced), byteCountIEC(size["doubled_deleted"]))
 }
