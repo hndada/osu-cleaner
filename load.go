@@ -57,6 +57,15 @@ func loadConfig() {
 			default:
 				log.Fatal("invalid: value should be 1 or 0.")
 			}
+		case "BanStoryboard":
+			switch values[1] {
+			case "1":
+				banSB = true
+			case "0":
+				banSB = false
+			default:
+				log.Fatal("invalid: value should be 1 or 0.")
+			}
 		}
 	}
 	check(scanner.Err())

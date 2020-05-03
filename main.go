@@ -1,31 +1,29 @@
 package main
 
 import (
-	"fmt"
 	"image"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 
-	"github.com/otiai10/copy"
+	"github.com/pierrre/archivefile/zip"
 )
 
 var (
 	root       string // osu! Songs dir
-	cwd        string
-	sameVolume bool
+	cwd        string // current working directory
+	sameVolume bool   // whether Songs dir and cleaner are in same drive volume
 
 	banModes   = make(map[int]bool)
 	banVideo   bool
 	banImage   bool
+	banSB      bool
 	banMappers = make(map[string]bool)
 	keep       = make(map[int]bool)
 
 	noID     = -1
 	blankImg = image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{1, 1}})
 )
-
-// dir 안 만들고 파일 이동 / 복사하면 에러 발생 추정
 
 func main() {
 	loadConfig()
@@ -45,6 +43,7 @@ func killDouble() {
 
 	var songName, songPath string
 	var mapName, mapPath string
+	var older, newer string
 	var id int
 	for _, song := range songs {
 		if !song.IsDir() {
@@ -65,20 +64,21 @@ func killDouble() {
 			mapPath = filepath.Join(songPath, mapName)
 			sum = addMd5(sum, getMd5(mapPath))
 		}
+
 		if existName, ok := marked[id]; ok {
-			fmt.Println("a")
 			if sum == songSum[existName] {
-				fmt.Println("c")
 				os.RemoveAll(songPath)
 			} else {
-				fmt.Println("d")
-				err = copy.Copy(songPath, filepath.Join("moved", songName))
-				if err != nil {
-					fmt.Println(err)
-				}
+				older, newer = olderNewer(filepath.Join(root, existName), songPath)
+				f, err := os.Create(filepath.Join("doubled", filepath.Base(older)+".zip"))
+				check(err)
+				err = zip.Archive(older, f, nil)
+				check(err)
+				os.RemoveAll(older)
+				marked[id] = filepath.Base(newer)
+				songSum[filepath.Base(newer)] = sum
 			}
 		} else {
-			fmt.Println("b")
 			marked[id] = songName
 			songSum[songName] = sum
 		}
@@ -92,63 +92,103 @@ func sweep() {
 	var info beatmapInfo
 	var songName, songPath string
 	var mapName, mapPath string
-	var targetPath string
-	isPicRemoved := make(map[string]bool)
-	safe := make(map[string]bool)
+	// var relPath string
+	// moveLists := make([][]string, 0, len(songs))
+	if _, err := os.Stat("moved"); os.IsNotExist(err) {
+		os.Mkdir("moved", os.ModePerm)
+	}
+	moves := make(map[string]bool)
+	allBan := make(map[string]bool)
+	bgPaths := make(map[string]bool)
 	for _, song := range songs {
+		var safe bool
+		var osbName string
 		if !song.IsDir() {
 			continue
 		}
 		songName = song.Name()
 		songPath = filepath.Join(root, songName)
-		safe[songName] = false
 		beatmaps, err := ioutil.ReadDir(songPath)
 		check(err)
+		// moves := make([]string, 0, len(beatmaps))
 		for _, beatmap := range beatmaps {
 			mapName = beatmap.Name()
+			if banSB && filepath.Ext(mapName) == ".osb" {
+				osbName = mapName
+			}
 			if filepath.Ext(mapName) != ".osu" {
 				continue
 			}
 			mapPath = filepath.Join(songPath, mapName)
 			info = getInfo(mapPath)
 			if keep[info.setID] {
-				safe[songName] = true
+				allBan[songName] = false
 				break
 			}
 			if banModes[info.mode] || banMappers[info.mapper] {
-				if err = move(mapPath); err != nil {
-					fmt.Println(err)
-				}
+				// relPath =
+				moves[filepath.Join(songName, mapName)] = true
+				// moves = append(moves, relPath)
 			} else {
-				safe[songName] = true
+				safe = true
 			}
-			if banVideo {
-				targetPath = filepath.Join(songPath, info.vidName)
-				if err = move(targetPath); err != nil {
-					fmt.Println(err)
-				}
+			if banVideo && info.vidName != "" {
+				moves[filepath.Join(songName, info.vidName)] = true
+				// relPath = filepath.Join(songName, info.vidName)
+				// moves = append(moves, relPath)
 			}
-			if banImage {
-				targetPath = filepath.Join(songPath, info.bgName)
-				if !isPicRemoved[targetPath] {
-					if err = move(targetPath); err != nil {
-						fmt.Println(err)
-					}
-					if err = blank(targetPath); err != nil {
-						fmt.Println(err)
-					}
-					isPicRemoved[targetPath] = true
+			if banImage && info.bgName != "" {
+				moves[filepath.Join(songName, info.bgName)] = true
+				// relPath = filepath.Join(songName, info.bgName)
+				// moves = append(moves, relPath)
+				bgPaths[filepath.Join(songName, info.bgName)] = true
+			}
+			if banSB {
+				for _, relPath := range info.sbRelPaths {
+					moves[relPath] = true
 				}
+				// moves = append(moves, info.sbRelPaths...)
+			}
+		}
+		if !safe {
+			allBan[songName] = true
+		} else {
+			// moveLists = append(moveLists, moves)
+			if osbName != "" {
+				info = getInfo(osbName)
+				for _, relPath := range info.sbRelPaths {
+					moves[relPath] = true
+				}
+				// moveLists = append(moveLists, info.sbRelPaths)
 			}
 		}
 	}
-	for _, song := range songs {
-		songName = song.Name()
-		if !song.IsDir() || safe[songName] {
+
+	for songName := range allBan {
+		songPath = filepath.Join(root, songName)
+		f, err := os.Create(filepath.Join(cwd, "moved", songName+".osz"))
+		check(err)
+		err = zip.Archive(songPath, f, nil)
+		check(err)
+		os.RemoveAll(songPath)
+	}
+
+	// for _, moves := range moveLists {
+	// 	for _, relPath := range moves {
+	// 		fmt.Println(relPath)
+	// 		err = move(relPath)
+	// 		check(err)
+	// 	}
+	// }
+	for relPath := range moves {
+		if relPath == "" {
 			continue
 		}
-		if err = moveAll(songName); err != nil {
-			fmt.Println(err)
-		}
+		err = move(relPath)
+		check(err)
+	}
+	for path := range bgPaths {
+		err = blank(path)
+		check(err)
 	}
 }

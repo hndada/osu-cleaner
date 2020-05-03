@@ -2,83 +2,72 @@ package main
 
 import (
 	"crypto/md5"
-	"errors"
 	"fmt"
 	"image/png"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 )
 
-func move(srcPath string) error {
-	rel, err := filepath.Rel(root, srcPath)
-	if err != nil {
-		return err
-	}
-	dest := filepath.Join(cwd, "moved", rel)
-	fmt.Println(dest)
+// input path must be filepath
+func move(relPath string) error {
+	destPath := filepath.Join(cwd, "moved", relPath)
+	err := os.MkdirAll(filepath.Dir(destPath), 0777)
+	check(err)
+	// if s, _:= os.Stat(destPath); s.IsDir()
+
+	absPath := filepath.Join(root, relPath)
 	if sameVolume {
-		err := os.Rename(srcPath, dest)
+		err = os.Rename(absPath, destPath)
 		return err
 	}
 
-	fmt.Println("1")
-	in, err := os.Open(srcPath)
+	in, err := os.Open(absPath)
 	if err != nil {
 		return fmt.Errorf("Couldn't open source file: %s", err)
 	}
-	fmt.Println("2")
-	out, err := os.Create(dest)
+
+	out, err := os.Create(destPath)
 	if err != nil {
 		in.Close()
 		return fmt.Errorf("Couldn't open dest file: %s", err)
 	}
 	defer out.Close()
-	fmt.Println("3")
+
 	_, err = io.Copy(out, in)
 	in.Close()
 	if err != nil {
 		return fmt.Errorf("Writing to output file failed: %s", err)
 	}
-	fmt.Println("4")
-	err = os.Remove(srcPath)
+
+	err = os.Remove(absPath)
 	if err != nil {
 		return fmt.Errorf("Failed removing original file: %s", err)
 	}
-	fmt.Println("5")
 	return nil
 }
 
-func moveAll(songName string) error {
-	songPath := filepath.Join(root, songName)
-	err := filepath.Walk(songPath,
-		func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			move(path)
-			return nil
-		})
-	check(err)
-	fs, err := ioutil.ReadDir(songPath)
-	check(err)
-	if len(fs) != 0 {
-		return errors.New("there're unmoved remained files!")
-	}
-	return os.Remove(songPath)
-}
-
-func blank(imgPath string) error {
-	f, err := os.Create(imgPath)
+func blank(imgRelPath string) error {
+	f, err := os.Create(filepath.Join(root, imgRelPath))
 	if err != nil {
 		return err
 	}
 	png.Encode(f, blankImg)
 	return nil
+}
+
+func olderNewer(path1, path2 string) (string, string) {
+	f1, err := os.Stat(path1)
+	check(err)
+	f2, err := os.Stat(path2)
+	check(err)
+	if f1.ModTime().Before(f2.ModTime()) {
+		return path1, path2
+	}
+	return path2, path1
 }
 
 func getMd5(mapPath string) [16]byte {
@@ -107,9 +96,28 @@ func getSetID(songName string) int {
 
 func check(err error) {
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 }
+
+// func moveAll(songName string) error {
+// 	songPath := filepath.Join(root, songName)
+// 	err := filepath.Walk(songPath,
+// 		func(path string, info os.FileInfo, err error) error {
+// 			if err != nil {
+// 				return err
+// 			}
+// 			move(path)
+// 			return nil
+// 		})
+// 	check(err)
+// 	fs, err := ioutil.ReadDir(songPath)
+// 	check(err)
+// 	if len(fs) != 0 {
+// 		return errors.New("there're unmoved remained files!")
+// 	}
+// 	return os.Remove(songPath)
+// }
 
 // func containsInt(s []int, e int) bool {
 // 	for _, v := range s {

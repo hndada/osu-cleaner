@@ -37,7 +37,7 @@ func isModeMatch(path string) (bool, error) {
 }
 
 func getBgName(mapPath string) string {
-	f, err := os.Open(path)
+	f, err := os.Open(mapPath)
 	if err != nil {
 		return false, err
 	}

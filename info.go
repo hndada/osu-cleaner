@@ -4,18 +4,20 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
 
 type beatmapInfo struct {
-	mode     int
-	metadata map[string]string
-	mapID    int
-	setID    int
-	mapper   string
-	bgName   string
-	vidName  string
+	mode       int
+	metadata   map[string]string
+	mapID      int
+	setID      int
+	mapper     string
+	bgName     string
+	vidName    string
+	sbRelPaths []string
 }
 
 func getInfo(mapPath string) beatmapInfo {
@@ -31,6 +33,7 @@ func getInfo(mapPath string) beatmapInfo {
 	var mode int
 	var info beatmapInfo
 	metadata := make(map[string]string)
+	sbRelPaths := make([]string, 0)
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line = scanner.Text()
@@ -56,18 +59,31 @@ func getInfo(mapPath string) beatmapInfo {
 			case "Events":
 				if strings.HasPrefix(line, "0,0,") {
 					info.bgName = strings.Trim(strings.Split(line, ",")[2], "\"")
-				}
-				if strings.HasPrefix(line, "Video,") || strings.HasPrefix(line, "1,") {
+				} else if strings.HasPrefix(line, "Video") || strings.HasPrefix(line, "1,") {
 					info.vidName = strings.Trim(strings.Split(line, ",")[2], "\"")
+				} else if strings.HasPrefix(line, "Sprite") || strings.HasPrefix(line, "Animation") ||
+					strings.HasPrefix(line, "Sample") {
+					sbRelPaths = append(sbRelPaths, strings.Trim(strings.Split(line, ",")[3], "\""))
 				}
 			}
 		}
 	}
-	info.mapID, info.setID = getID(metadata)
-	info.mapper = getMapper(metadata)
-	info.metadata = metadata
+	info.sbRelPaths = sbRelPaths
+	if filepath.Ext(mapPath) == ".osu" {
+		info.mapID, info.setID = getID(metadata)
+		info.mapper = getMapper(metadata)
+		info.metadata = metadata
+	}
 	return info
 }
+
+// func hasSBPath(line string) bool {
+// 	if strings.HasPrefix(line, "Sprite") || strings.HasPrefix(line, "Animation") ||
+// 		strings.HasPrefix(line, "Sample") {
+// 		return true
+// 	}
+// 	return false
+// }
 
 func getMapper(metadata map[string]string) string {
 	values := strings.SplitN(metadata["Version"], "'s", 2)

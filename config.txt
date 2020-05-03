@@ -1,4 +1,5 @@
 Songs:D:\test
 BanModes:0
 BanVideo:1
-BanImage:0
+BanImage:1
+BanStoryboard:1
