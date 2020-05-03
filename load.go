@@ -97,3 +97,19 @@ func loadKeep() {
 		keep[id] = true
 	}
 }
+
+func loadBanMappers() {
+	f, err := os.Open("banMapper.txt")
+	check(err)
+	defer f.Close()
+
+	var text string
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		text = scanner.Text()
+		if text == "" || strings.HasPrefix(text, "//") {
+			continue
+		}
+		banMappers[text] = true
+	}
+}

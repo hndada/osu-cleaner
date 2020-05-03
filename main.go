@@ -30,11 +30,11 @@ var (
 )
 
 func main() {
-	fmt.Println("Start running, this might take several minutes...")
+	fmt.Println("Start running, this might take several minutes to an hour...")
 	loadConfig()
-	fmt.Println("Loading config done, start loading keep list...")
 	loadKeep()
-	fmt.Println("Loading keep list done, start killing doubled files...")
+	loadBanMappers()
+	fmt.Println("Loading config done, start killing doubled files...")
 	killDouble()
 	fmt.Println("Double killing done, start cleaning...")
 	sweep()
