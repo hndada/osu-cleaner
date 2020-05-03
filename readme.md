@@ -1,12 +1,25 @@
-// dir path of the original osu! Songs folder.
-From:
+osu! cleaner
+===================================
+Make your osu! Songs folder light!
 
-// dir path of the folder that banned files moves to. 
-To:
+# Features
+- Remove duplicated folder
+- Ban modes that you don't play
+    * With keeping your favorite mapset!
+- Ban video, background image and storyboard
+    * You can put combination of options above
+- Ban mappers' maps that you dislike
 
-// list of modes that you want to ban. 
-// integers between 0 ~ 3 separate with commas. (e.g., 0,1,2) 
-BanModes:0
+# How to use
+1. Set osu! Songs folder and options at config.txt.
+2. Put SetIDs that you want to keep in Songs folder regardless of options you chose at keep.txt.
+3. Put mappers' user ID at banMapper.txt if you want to delete all maps mapped by them.
+4. Double click the .exe file.
 
-// whether you want to ban all kinds of vids in Songs folder or not.
-BanVideo:1
+# Note
+- This might take minutes to an hour depending on the size of Songs folder.
+- A duplicated mapset would be moved or deleted based on situations: 
+    * If it has identical beatmaps goes deleted at the time.
+    * Otherwise the older one goes archieved. This is for re-check by user manually.
+- Banned (filtered) files goes to 'moved' folder
+    * You can treat them as you like (e.g., delete)

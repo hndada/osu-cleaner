@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"image"
 	"io/ioutil"
@@ -66,6 +67,10 @@ func main() {
 	fmt.Println("Double killing done, start cleaning...")
 	sweep()
 	printSize()
+	buf := bufio.NewReader(os.Stdin)
+	buf.Discard(1) // I guess it's due to variable yes
+	fmt.Print("\nPress the Enter to terminate the console.")
+	buf.ReadBytes('\n') // wait for Enter Key
 }
 
 // check sameness with sums of all beatmap's md5 of each folder
