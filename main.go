@@ -36,9 +36,9 @@ func main() {
 	fmt.Printf("osu! Songs folder: %s\n", root)
 	modes := make([]string, 0, len(banModes))
 	for mode := range banModes {
-		modes = append(modes, strconv.Itoa(mode))
+		modes = append(modes, map[int]string{0: "Standard", 1: "Taiko", 2: "Catch", 3: "Mania"}[mode])
 	}
-	fmt.Printf("Banned modes: %+v (0: Standard 1: Taiko 2: Catch 3: Mania)\n", strings.Join(modes, ","))
+	fmt.Printf("Banned modes: %s\n", strings.Join(modes, ","))
 	fmt.Printf("Ban videos: %t\n", banVideo)
 	fmt.Printf("Ban background images: %t\n", banImage)
 	fmt.Printf("Ban storyboards: %t\n", banSB)
