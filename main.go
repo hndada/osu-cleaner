@@ -32,6 +32,7 @@ func main() {
 	sweep()
 }
 
+// check sameness with sums of all beatmap's md5 of each folder
 func killDouble() {
 	marked := make(map[int]string)
 	songSum := make(map[string][16]byte)
@@ -68,7 +69,7 @@ func killDouble() {
 		if existName, ok := marked[id]; ok {
 			if sum == songSum[existName] {
 				os.RemoveAll(songPath)
-			} else {
+			} else { // remove older and update with newer
 				older, newer = olderNewer(filepath.Join(root, existName), songPath)
 				f, err := os.Create(filepath.Join("doubled", filepath.Base(older)+".zip"))
 				check(err)
@@ -88,18 +89,16 @@ func killDouble() {
 func sweep() {
 	songs, err := ioutil.ReadDir(root)
 	check(err)
+	if _, err := os.Stat("moved"); os.IsNotExist(err) {
+		os.Mkdir("moved", os.ModePerm)
+	}
 
 	var info beatmapInfo
 	var songName, songPath string
 	var mapName, mapPath string
-	// var relPath string
-	// moveLists := make([][]string, 0, len(songs))
-	if _, err := os.Stat("moved"); os.IsNotExist(err) {
-		os.Mkdir("moved", os.ModePerm)
-	}
-	moves := make(map[string]bool)
+	movesList := make(map[string]bool)
 	allBan := make(map[string]bool)
-	bgPaths := make(map[string]bool)
+	bgPathsList := make(map[string]bool)
 	for _, song := range songs {
 		var safe bool
 		var osbName string
@@ -110,7 +109,8 @@ func sweep() {
 		songPath = filepath.Join(root, songName)
 		beatmaps, err := ioutil.ReadDir(songPath)
 		check(err)
-		// moves := make([]string, 0, len(beatmaps))
+		moves := make([]string, 0, len(beatmaps))
+		bgPaths := make([]string, 0, len(beatmaps))
 		for _, beatmap := range beatmaps {
 			mapName = beatmap.Name()
 			if banSB && filepath.Ext(mapName) == ".osb" {
@@ -126,46 +126,43 @@ func sweep() {
 				break
 			}
 			if banModes[info.mode] || banMappers[info.mapper] {
-				// relPath =
-				moves[filepath.Join(songName, mapName)] = true
-				// moves = append(moves, relPath)
+				moves = append(moves, filepath.Join(songName, mapName))
 			} else {
 				safe = true
 			}
 			if banVideo && info.vidName != "" {
-				moves[filepath.Join(songName, info.vidName)] = true
-				// relPath = filepath.Join(songName, info.vidName)
-				// moves = append(moves, relPath)
+				moves = append(moves, filepath.Join(songName, info.vidName))
 			}
 			if banImage && info.bgName != "" {
-				moves[filepath.Join(songName, info.bgName)] = true
-				// relPath = filepath.Join(songName, info.bgName)
-				// moves = append(moves, relPath)
-				bgPaths[filepath.Join(songName, info.bgName)] = true
+				moves = append(moves, filepath.Join(songName, info.bgName))
+				bgPaths = append(bgPaths, filepath.Join(songName, info.bgName))
 			}
 			if banSB {
 				for _, relPath := range info.sbRelPaths {
-					moves[relPath] = true
+					moves = append(moves, filepath.Join(songName, relPath))
 				}
-				// moves = append(moves, info.sbRelPaths...)
 			}
 		}
-		if !safe {
+		if !safe { // marked with allBan beatmapSet goes archieved with .osz
 			allBan[songName] = true
 		} else {
-			// moveLists = append(moveLists, moves)
 			if osbName != "" {
 				info = getInfo(osbName)
 				for _, relPath := range info.sbRelPaths {
-					moves[relPath] = true
+					moves = append(moves, filepath.Join(songName, relPath))
 				}
-				// moveLists = append(moveLists, info.sbRelPaths)
+			}
+			for _, relPath := range moves {
+				movesList[relPath] = true
+			}
+			for _, relPath := range bgPaths {
+				bgPathsList[relPath] = true
 			}
 		}
 	}
 
 	for songName := range allBan {
-		songPath = filepath.Join(root, songName)
+		songPath = filepath.Join(root, songName) + "/"
 		f, err := os.Create(filepath.Join(cwd, "moved", songName+".osz"))
 		check(err)
 		err = zip.Archive(songPath, f, nil)
@@ -173,22 +170,13 @@ func sweep() {
 		os.RemoveAll(songPath)
 	}
 
-	// for _, moves := range moveLists {
-	// 	for _, relPath := range moves {
-	// 		fmt.Println(relPath)
-	// 		err = move(relPath)
-	// 		check(err)
-	// 	}
-	// }
-	for relPath := range moves {
-		if relPath == "" {
-			continue
-		}
+	for relPath := range movesList {
 		err = move(relPath)
 		check(err)
 	}
-	for path := range bgPaths {
-		err = blank(path)
+	// put blank pics; osu! gets angry when it detects bg was deleted
+	for relPath := range bgPathsList {
+		err = blank(relPath)
 		check(err)
 	}
 }

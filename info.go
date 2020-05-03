@@ -77,14 +77,6 @@ func getInfo(mapPath string) beatmapInfo {
 	return info
 }
 
-// func hasSBPath(line string) bool {
-// 	if strings.HasPrefix(line, "Sprite") || strings.HasPrefix(line, "Animation") ||
-// 		strings.HasPrefix(line, "Sample") {
-// 		return true
-// 	}
-// 	return false
-// }
-
 func getMapper(metadata map[string]string) string {
 	values := strings.SplitN(metadata["Version"], "'s", 2)
 	if len(values) == 1 {
